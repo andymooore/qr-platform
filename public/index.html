@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #222240;
+      --accent: #e94560;
+      --accent-hover: #d63d56;
+      --accent2: #7c3aed;
+      --text: #eee;
+      --text-muted: #9ca3af;
+      --border: #2d2d4a;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Layout */
+    .app { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stats-bar { display: flex; gap: 24px; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Buttons */
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .btn-danger:hover { background: var(--accent); color: #fff; }
+    .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+    .btn-icon { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+
+    /* Create Section */
+    .create-section { background: var(--surface); border-radius: var(--radius); padding: 28px; margin-bottom: 32px; border: 1px solid var(--border); }
+    .create-section h2 { font-size: 1.1rem; margin-bottom: 20px; font-weight: 600; }
+    .create-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .create-tab { padding: 8px 18px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 0.85rem; font-family: inherit; transition: all 0.2s; }
+    .create-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .form-row > * { flex: 1; }
+    input[type="text"], input[type="url"], select { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: var(--accent); }
+    .file-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+    .file-drop:hover, .file-drop.dragover { border-color: var(--accent); background: rgba(233,69,96,0.05); }
+    .file-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-drop p { color: var(--text-muted); font-size: 0.9rem; }
+    .file-drop .file-name { color: var(--success); font-weight: 500; margin-top: 8px; }
+
+    /* QR Grid */
+    .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+    .qr-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+    .qr-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .qr-card-top { display: flex; gap: 16px; padding: 20px; }
+    .qr-img { width: 120px; height: 120px; border-radius: 8px; background: #fff; padding: 4px; flex-shrink: 0; }
+    .qr-img img { width: 100%; height: 100%; object-fit: contain; }
+    .qr-info { flex: 1; min-width: 0; }
+    .qr-info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qr-type { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .qr-type.url { background: rgba(124,58,237,0.2); color: #a78bfa; }
+    .qr-type.file { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+    .qr-dest { font-size: 0.8rem; color: var(--text-muted); word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+    .qr-scans { font-size: 0.8rem; color: var(--text-muted); }
+    .qr-scans strong { color: var(--accent); font-weight: 600; }
+    .qr-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .qr-status.active { background: var(--success); }
+    .qr-status.inactive { background: var(--warning); }
+    .qr-card-actions { display: flex; gap: 8px; padding: 0 20px 16px; flex-wrap: wrap; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
+    .modal h2 { font-size: 1.2rem; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    /* Toast */
+    .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 0.85rem; animation: slideIn 0.3s ease; }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--accent); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Empty State */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty h3 { font-size: 1.2rem; margin-bottom: 8px; color: var(--text); }
+
+    /* Search */
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
+    .toolbar input { max-width: 300px; }
+    .toolbar .count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); }
+
+    @media (max-width: 640px) {
+      .qr-grid { grid-template-columns: 1fr; }
+      .form-row { flex-direction: column; }
+      header { flex-direction: column; gap: 16px; }
+      .stats-bar { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>QR Code Platform</h1>
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-value" id="totalCodes">0</div>
+          <div class="stat-label">QR Codes</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="totalScans">0</div>
+          <div class="stat-label">Total Scans</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Create Section -->
+    <div class="create-section">
+      <h2>Create New QR Code</h2>
+      <div class="create-tabs">
+        <button class="create-tab active" data-tab="url" onclick="switchTab('url')">URL / Link</button>
+        <button class="create-tab" data-tab="file" onclick="switchTab('file')">File Upload</button>
+      </div>
+
+      <!-- URL Form -->
+      <form id="urlForm" onsubmit="createUrlQR(event)">
+        <div class="form-row">
+          <input type="text" id="urlName" placeholder="QR Code name (e.g., Menu, Brochure)" required>
+          <input type="url" id="urlDest" placeholder="https://example.com" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Generate QR Code</button>
+      </form>
+
+      <!-- File Form -->
+      <form id="fileForm" style="display:none" onsubmit="createFileQR(event)">
+        <div class="form-row">
+          <input type="text" id="fileName" placeholder="QR Code name (e.g., Product Manual)" required>
+        </div>
+        <div class="file-drop" id="fileDrop">
+          <input type="file" id="fileInput" onchange="handleFileSelect(this)">
+          <p>Drop a file here or click to browse</p>
+          <p style="font-size:0.75rem;margin-top:8px;color:var(--border)">PDF, Images, Documents, Spreadsheets, Audio, Video, ZIP (up to 50MB)</p>
+          <p class="file-name" id="fileLabel"></p>
+        </div>
+        <div style="margin-top:12px">
+          <button type="submit" class="btn btn-primary">Generate QR Code</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- QR List -->
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search QR codes..." oninput="renderQRCodes()">
+      <span class="count" id="codeCount"></span>
+    </div>
+    <div class="qr-grid" id="qrGrid"></div>
+    <div class="empty" id="emptyState" style="display:none">
+      <h3>No QR codes yet</h3>
+      <p>Create your first dynamic QR code above.</p>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h2>Edit QR Code</h2>
+      <form id="editForm" onsubmit="saveEdit(event)">
+        <input type="hidden" id="editId">
+        <div class="form-row">
+          <input type="text" id="editName" placeholder="Name" required>
+        </div>
+        <div class="create-tabs" style="margin-top:12px">
+          <button type="button" class="create-tab active" data-edit-tab="url" onclick="switchEditTab('url')">URL / Link</button>
+          <button type="button" class="create-tab" data-edit-tab="file" onclick="switchEditTab('file')">File Upload</button>
+        </div>
+        <div id="editUrlSection">
+          <div class="form-row">
+            <input type="url" id="editUrl" placeholder="https://example.com">
+          </div>
+        </div>
+        <div id="editFileSection" style="display:none">
+          <div class="file-drop" id="editFileDrop">
+            <input type="file" id="editFileInput" onchange="handleEditFileSelect(this)">
+            <p>Drop a new file or click to browse</p>
+            <p class="file-name" id="editFileLabel"></p>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:12px;align-items:center">
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;cursor:pointer">
+            <input type="checkbox" id="editActive" checked> Active
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Analytics Modal -->
+  <div class="modal-overlay" id="analyticsModal">
+    <div class="modal">
+      <h2>Scan Analytics</h2>
+      <div id="analyticsContent"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeAnalyticsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
+  <script>
+    const API = '/api/qrcodes';
+    let qrCodes = [];
+
+    // Toast notifications
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.textContent = msg;
+      document.getElementById('toasts').appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // Tabs
+    function switchTab(tab) {
+      document.querySelectorAll('.create-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+      document.getElementById('urlForm').style.display = tab === 'url' ? '' : 'none';
+      document.getElementById('fileForm').style.display = tab === 'file' ? '' : 'none';
+    }
+
+    function switchEditTab(tab) {
+      document.querySelectorAll('[data-edit-tab]').forEach(t => t.classList.toggle('active', t.dataset.editTab === tab));
+      document.getElementById('editUrlSection').style.display = tab === 'url' ? '' : 'none';
+      document.getElementById('editFileSection').style.display = tab === 'file' ? '' : 'none';
+    }
+
+    // File handling
+    function handleFileSelect(input) {
+      const label = document.getElementById('fileLabel');
+      label.textContent = input.files[0] ? input.files[0].name : '';
+    }
+    function handleEditFileSelect(input) {
+      const label = document.getElementById('editFileLabel');
+      label.textContent = input.files[0] ? input.files[0].name : '';
+    }
+
+    // Drag and drop
+    ['fileDrop', 'editFileDrop'].forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
+      el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+      el.addEventListener('drop', e => {
+        e.preventDefault(); el.classList.remove('dragover');
+        const input = el.querySelector('input[type="file"]');
+        input.files = e.dataTransfer.files;
+        input.dispatchEvent(new Event('change'));
+      });
+    });
+
+    // Create URL QR
+    async function createUrlQR(e) {
+      e.preventDefault();
+      const name = document.getElementById('urlName').value.trim();
+      const destination_url = document.getElementById('urlDest').value.trim();
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, destination_url })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        toast('QR code created!');
+        document.getElementById('urlName').value = '';
+        document.getElementById('urlDest').value = '';
+        loadQRCodes();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    // Create File QR
+    async function createFileQR(e) {
+      e.preventDefault();
+      const name = document.getElementById('fileName').value.trim();
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) return toast('Please select a file', 'error');
+
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('file', file);
+      try {
+        const res = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error((await res.json()).error);
+        toast('QR code created!');
+        document.getElementById('fileName').value = '';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileLabel').textContent = '';
+        loadQRCodes();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    // Load QR codes
+    async function loadQRCodes() {
+      try {
+        const res = await fetch(API);
+        qrCodes = await res.json();
+        updateStats();
+        renderQRCodes();
+      } catch (err) { toast('Failed to load QR codes', 'error'); }
+    }
+
+    function updateStats() {
+      document.getElementById('totalCodes').textContent = qrCodes.length;
+      document.getElementById('totalScans').textContent = qrCodes.reduce((sum, q) => sum + q.scan_count, 0);
+    }
+
+    function renderQRCodes() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const filtered = qrCodes.filter(q =>
+        q.name.toLowerCase().includes(search) ||
+        (q.destination_url || '').toLowerCase().includes(search) ||
+        (q.file_name || '').toLowerCase().includes(search)
+      );
+
+      const grid = document.getElementById('qrGrid');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('codeCount').textContent = `${filtered.length} QR code${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      grid.innerHTML = filtered.map(qr => `
+        <div class="qr-card">
+          <div class="qr-card-top">
+            <div class="qr-img">
+              <img src="${API}/${qr.id}/image?size=240" alt="QR Code">
+            </div>
+            <div class="qr-info">
+              <h3><span class="qr-status ${qr.is_active ? 'active' : 'inactive'}"></span>${esc(qr.name)}</h3>
+              <span class="qr-type ${qr.destination_type}">${qr.destination_type}</span>
+              <div class="qr-dest">${qr.destination_type === 'url' ? esc(qr.destination_url) : esc(qr.file_name)}</div>
+              <div class="qr-scans">Scans: <strong>${qr.scan_count}</strong></div>
+            </div>
+          </div>
+          <div class="qr-card-actions">
+            <button class="btn btn-secondary btn-sm" onclick="copyLink('${qr.redirect_url}')">Copy Link</button>
+            <button class="btn btn-secondary btn-sm" onclick="downloadQR('${qr.id}', '${esc(qr.name)}')">Download</button>
+            <button class="btn btn-secondary btn-sm" onclick="openEdit('${qr.id}')">Edit</button>
+            <button class="btn btn-secondary btn-sm" onclick="showAnalytics('${qr.id}')">Analytics</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteQR('${qr.id}', '${esc(qr.name)}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function esc(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // Copy redirect link
+    function copyLink(url) {
+      navigator.clipboard.writeText(url).then(() => toast('Link copied!'));
+    }
+
+    // Download QR image
+    function downloadQR(id, name) {
+      const a = document.createElement('a');
+      a.href = `${API}/${id}/image?size=1000`;
+      a.download = `${name}-qr.png`;
+      a.click();
+    }
+
+    // Edit
+    function openEdit(id) {
+      const qr = qrCodes.find(q => q.id === id);
+      if (!qr) return;
+      document.getElementById('editId').value = id;
+      document.getElementById('editName').value = qr.name;
+      document.getElementById('editActive').checked = qr.is_active;
+      document.getElementById('editUrl').value = qr.destination_url || '';
+      document.getElementById('editFileInput').value = '';
+      document.getElementById('editFileLabel').textContent = qr.file_name ? `Current: ${qr.file_name}` : '';
+
+      if (qr.destination_type === 'url') {
+        switchEditTab('url');
+      } else {
+        switchEditTab('file');
+      }
+      document.getElementById('editModal').classList.add('active');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+
+    async function saveEdit(e) {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const name = document.getElementById('editName').value.trim();
+      const is_active = document.getElementById('editActive').checked;
+      const editFile = document.getElementById('editFileInput').files[0];
+      const editUrlVisible = document.getElementById('editUrlSection').style.display !== 'none';
+
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('is_active', is_active);
+
+      if (editFile) {
+        fd.append('file', editFile);
+      } else if (editUrlVisible) {
+        fd.append('destination_url', document.getElementById('editUrl').value.trim());
+      }
+
+      try {
+        const res = await fetch(`${API}/${id}`, { method: 'PUT', body: fd });
+        if (!res.ok) throw new Error((await res.json()).error);
+        toast('QR code updated!');
+        closeEditModal();
+        loadQRCodes();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    // Delete
+    async function deleteQR(id, name) {
+      if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+      try {
+        await fetch(`${API}/${id}`, { method: 'DELETE' });
+        toast('QR code deleted');
+        loadQRCodes();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    // Analytics
+    async function showAnalytics(id) {
+      const qr = qrCodes.find(q => q.id === id);
+      try {
+        const res = await fetch(`${API}/${id}/scans`);
+        const data = await res.json();
+        const content = document.getElementById('analyticsContent');
+        content.innerHTML = `
+          <div style="margin-bottom:16px">
+            <h3 style="font-size:0.95rem;margin-bottom:4px">${esc(qr.name)}</h3>
+            <div style="font-size:2rem;font-weight:700;color:var(--accent)">${data.total}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">total scans</div>
+          </div>
+          ${data.recent.length > 0 ? `
+            <h4 style="font-size:0.85rem;margin-bottom:8px;color:var(--text-muted)">Recent Scans</h4>
+            <div style="max-height:300px;overflow-y:auto">
+              ${data.recent.map(s => `
+                <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:0.8rem">
+                  <div style="color:var(--text-muted)">${new Date(s.scanned_at + 'Z').toLocaleString()}</div>
+                  <div style="color:var(--text);margin-top:2px;word-break:break-all">${esc(s.user_agent || 'Unknown device')}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<p style="color:var(--text-muted);font-size:0.85rem">No scans yet.</p>'}
+        `;
+        document.getElementById('analyticsModal').classList.add('active');
+      } catch (err) { toast('Failed to load analytics', 'error'); }
+    }
+    function closeAnalyticsModal() { document.getElementById('analyticsModal').classList.remove('active'); }
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(el => {
+      el.addEventListener('click', e => {
+        if (e.target === el) el.classList.remove('active');
+      });
+    });
+
+    // Init
+    loadQRCodes();
+  </script>
+</body>
+</html>
