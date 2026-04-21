@@ -199,6 +199,27 @@
       </div>
     </div>
 
+    <!-- Coming Soon Page Settings (collapsible) -->
+    <div class="settings-section">
+      <div class="settings-header" onclick="togglePlaceholder()">
+        <h2>⏳ Coming Soon Page</h2>
+        <span id="placeholderChevron" style="color:var(--text-muted);font-size:0.8rem">▼ expand</span>
+      </div>
+      <div class="settings-body" id="placeholderBody">
+        <div class="field-label">Shown when someone scans a reserved (empty) QR code</div>
+        <div class="settings-row" style="gap:10px;flex-wrap:wrap">
+          <input type="text" id="phEmoji" placeholder="Emoji (e.g. ⏳)" style="max-width:90px">
+          <input type="text" id="phTitle" placeholder="Title (e.g. Coming Soon)" style="flex:1;min-width:180px">
+        </div>
+        <div class="settings-row" style="margin-top:10px">
+          <textarea id="phMessage" placeholder="Message shown to visitors…" rows="3" style="flex:1;resize:vertical;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:0.9rem"></textarea>
+        </div>
+        <div class="settings-row" style="margin-top:10px">
+          <button class="btn btn-primary" onclick="savePlaceholder()">Save Coming Soon Page</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Create Section -->
     <div class="create-section">
       <h2>Create New QR Code</h2>
@@ -361,12 +382,39 @@
       chevron.textContent = open ? '▲ collapse' : '▼ expand';
     }
 
+    function togglePlaceholder() {
+      const body = document.getElementById('placeholderBody');
+      const chevron = document.getElementById('placeholderChevron');
+      const open = body.classList.toggle('open');
+      chevron.textContent = open ? '▲ collapse' : '▼ expand';
+    }
+
     async function loadSettings() {
       try {
         const res = await fetch('/api/settings');
         const data = await res.json();
         document.getElementById('domainInput').value = data.base_url || '';
+        if (data.placeholder) {
+          document.getElementById('phEmoji').value   = data.placeholder.emoji   || '';
+          document.getElementById('phTitle').value   = data.placeholder.title   || '';
+          document.getElementById('phMessage').value = data.placeholder.message || '';
+        }
       } catch {}
+    }
+
+    async function savePlaceholder() {
+      const emoji   = document.getElementById('phEmoji').value.trim();
+      const title   = document.getElementById('phTitle').value.trim();
+      const message = document.getElementById('phMessage').value.trim();
+      try {
+        const res = await fetch('/api/settings/placeholder', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji, title, message })
+        });
+        if (!res.ok) throw new Error('Failed to save');
+        toast('Coming Soon page updated!');
+      } catch (err) { toast(err.message, 'error'); }
     }
 
     async function saveDomain() {

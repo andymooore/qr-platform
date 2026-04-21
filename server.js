@@ -72,6 +72,17 @@ function getBaseUrl() {
   return row ? row.value : ENV_BASE_URL;
 }
 
+function getPlaceholder() {
+  const emoji   = stmtGetSetting.get('placeholder_emoji');
+  const title   = stmtGetSetting.get('placeholder_title');
+  const message = stmtGetSetting.get('placeholder_message');
+  return {
+    emoji:   emoji   ? emoji.value   : '⏳',
+    title:   title   ? title.value   : 'Content Coming Soon',
+    message: message ? message.value : 'This QR code has been reserved but content hasn\'t been attached yet.',
+  };
+}
+
 // ==================== PREPARED STATEMENTS ====================
 
 const stmtInsertQR = db.prepare(`
@@ -171,7 +182,15 @@ const upload = multer({
 // ==================== SETTINGS API ====================
 
 app.get('/api/settings', (req, res) => {
-  res.json({ base_url: getBaseUrl() });
+  res.json({ base_url: getBaseUrl(), placeholder: getPlaceholder() });
+});
+
+app.put('/api/settings/placeholder', (req, res) => {
+  const { emoji, title, message } = req.body;
+  if (emoji   !== undefined) stmtUpsertSetting.run('placeholder_emoji',   String(emoji));
+  if (title   !== undefined) stmtUpsertSetting.run('placeholder_title',   String(title));
+  if (message !== undefined) stmtUpsertSetting.run('placeholder_message', String(message));
+  res.json({ placeholder: getPlaceholder() });
 });
 
 // Update domain — all QR image URLs immediately reflect the new domain on next request.
@@ -413,11 +432,12 @@ app.get('/r/:code', (req, res) => {
   }
 
   if (qr.destination_type === 'empty') {
-    return res.status(200).send(pageShell('Coming Soon', `
+    const ph = getPlaceholder();
+    return res.status(200).send(pageShell(ph.title, `
       <div style="text-align:center;margin-top:20vh;padding:40px;background:rgba(255,255,255,.05);border-radius:16px;border:1px solid rgba(255,255,255,.1);max-width:480px;width:100%">
-        <div style="font-size:3.5rem;margin-bottom:16px">⏳</div>
-        <h1 style="font-size:1.5rem;margin-bottom:8px">Content Coming Soon</h1>
-        <p style="opacity:.6">This QR code has been reserved but no content has been attached yet.</p>
+        <div style="font-size:3.5rem;margin-bottom:16px">${ph.emoji}</div>
+        <h1 style="font-size:1.5rem;margin-bottom:8px">${ph.title}</h1>
+        <p style="opacity:.6">${ph.message}</p>
         <p style="margin-top:12px;font-size:.8rem;opacity:.35">${qr.name}</p>
       </div>`));
   }
