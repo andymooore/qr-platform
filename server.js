@@ -59,6 +59,11 @@ db.exec(`
   );
 `);
 
+// Add per-QR placeholder columns if they don't exist yet (safe to run repeatedly)
+for (const col of ['placeholder_emoji', 'placeholder_title', 'placeholder_message']) {
+  try { db.exec(`ALTER TABLE qrcodes ADD COLUMN ${col} TEXT`); } catch {}
+}
+
 // ==================== SETTINGS HELPERS ====================
 
 const stmtGetSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
@@ -284,7 +289,8 @@ app.put('/api/qrcodes/:id', upload.single('file'), (req, res) => {
   const qr = stmtGetQR.get(req.params.id);
   if (!qr) return res.status(404).json({ error: 'QR code not found' });
 
-  const { name, destination_url, is_active, clear_destination } = req.body;
+  const { name, destination_url, is_active, clear_destination,
+          placeholder_emoji, placeholder_title, placeholder_message } = req.body;
   const activeVal = toActiveInt(is_active);
   const changes = [];
 
@@ -327,6 +333,23 @@ app.put('/api/qrcodes/:id', upload.single('file'), (req, res) => {
         is_active = COALESCE(?, is_active), updated_at = datetime('now')
       WHERE id = ?
     `).run(name || null, activeVal, req.params.id);
+  }
+
+  // Per-QR placeholder — only update when any field is present in the request body.
+  // Empty string → null → falls back to global default.
+  if ('placeholder_emoji' in req.body || 'placeholder_title' in req.body || 'placeholder_message' in req.body) {
+    db.prepare(`
+      UPDATE qrcodes SET
+        placeholder_emoji   = ?,
+        placeholder_title   = ?,
+        placeholder_message = ?
+      WHERE id = ?
+    `).run(
+      placeholder_emoji   ? placeholder_emoji.trim()   : null,
+      placeholder_title   ? placeholder_title.trim()   : null,
+      placeholder_message ? placeholder_message.trim() : null,
+      req.params.id
+    );
   }
 
   if (changes.length) writeAudit(req.params.id, 'updated', { changes });
@@ -432,12 +455,15 @@ app.get('/r/:code', (req, res) => {
   }
 
   if (qr.destination_type === 'empty') {
-    const ph = getPlaceholder();
-    return res.status(200).send(pageShell(ph.title, `
+    const defaults = getPlaceholder();
+    const emoji   = qr.placeholder_emoji   || defaults.emoji;
+    const title   = qr.placeholder_title   || defaults.title;
+    const message = qr.placeholder_message || defaults.message;
+    return res.status(200).send(pageShell(title, `
       <div style="text-align:center;margin-top:20vh;padding:40px;background:rgba(255,255,255,.05);border-radius:16px;border:1px solid rgba(255,255,255,.1);max-width:480px;width:100%">
-        <div style="font-size:3.5rem;margin-bottom:16px">${ph.emoji}</div>
-        <h1 style="font-size:1.5rem;margin-bottom:8px">${ph.title}</h1>
-        <p style="opacity:.6">${ph.message}</p>
+        <div style="font-size:3.5rem;margin-bottom:16px">${emoji}</div>
+        <h1 style="font-size:1.5rem;margin-bottom:8px">${title}</h1>
+        <p style="opacity:.6">${message}</p>
         <p style="margin-top:12px;font-size:.8rem;opacity:.35">${qr.name}</p>
       </div>`));
   }

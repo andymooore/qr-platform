@@ -322,6 +322,14 @@
         </div>
 
         <hr class="divider">
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">Coming Soon page <span style="opacity:.6">(shown when no content is attached — leave blank to use global default)</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="editPhEmoji" placeholder="Emoji (default: ⏳)" style="max-width:140px">
+          <input type="text" id="editPhTitle" placeholder="Title (default: Content Coming Soon)" style="flex:1">
+        </div>
+        <textarea id="editPhMessage" placeholder="Message (default: This QR code has been reserved…)" rows="2" style="width:100%;resize:vertical;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:0.85rem;box-sizing:border-box"></textarea>
+
+        <hr class="divider">
         <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;cursor:pointer;margin-bottom:4px">
           <input type="checkbox" id="editActive"> Active (QR code responds when scanned)
         </label>
@@ -613,6 +621,9 @@
       document.getElementById('editUrl').value = qr.destination_url || '';
       document.getElementById('editFileInput').value = '';
       document.getElementById('editFileLabel').textContent = qr.file_name ? `Current: ${qr.file_name}` : '';
+      document.getElementById('editPhEmoji').value   = qr.placeholder_emoji   || '';
+      document.getElementById('editPhTitle').value   = qr.placeholder_title   || '';
+      document.getElementById('editPhMessage').value = qr.placeholder_message || '';
 
       const destEl = document.getElementById('editCurrentDest');
       if (qr.destination_type === 'url') {
@@ -652,6 +663,11 @@
       } else if (activeTab === 'clear') {
         fd.append('clear_destination', 'true');
       }
+
+      // Always send placeholder fields so empty = clear to global default
+      fd.append('placeholder_emoji',   document.getElementById('editPhEmoji').value.trim());
+      fd.append('placeholder_title',   document.getElementById('editPhTitle').value.trim());
+      fd.append('placeholder_message', document.getElementById('editPhMessage').value.trim());
 
       try {
         const res = await fetch(`${API}/${id}`, { method: 'PUT', body: fd });
