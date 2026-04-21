@@ -266,6 +266,15 @@ app.get('/api/qrcodes/:id/scans', (req, res) => {
   res.json({ total: qr.scan_count, recent: scans });
 });
 
+// Serve a file inline (for PDF viewing in browser)
+app.get('/view/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename); // prevent path traversal
+  const filePath = path.join(__dirname, 'uploads', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  res.sendFile(filePath);
+});
+
 // ==================== REDIRECT ROUTE ====================
 
 app.get('/r/:code', (req, res) => {
@@ -306,7 +315,10 @@ app.get('/r/:code', (req, res) => {
         </style></head><body>
           <div class="header"><h1>${qr.file_name}</h1></div>
           ${qr.file_type === 'application/pdf'
-            ? `<iframe src="/uploads/${qr.file_path}"></iframe>`
+            ? `<object data="/view/${qr.file_path}" type="application/pdf" width="100%" style="max-width:900px;height:80vh;border-radius:8px;display:block;">
+                <embed src="/view/${qr.file_path}" type="application/pdf" width="100%" style="max-width:900px;height:80vh;border-radius:8px;" />
+                <p style="text-align:center;padding:20px;">Your browser cannot display PDFs inline. <a class="download" href="/view/${qr.file_path}" style="color:#e94560">Open PDF</a></p>
+               </object>`
             : `<img class="preview" src="/uploads/${qr.file_path}" alt="${qr.file_name}">`
           }
           <a class="download" href="/uploads/${qr.file_path}" download="${qr.file_name}">Download</a>
