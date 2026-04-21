@@ -309,16 +309,53 @@ app.get('/r/:code', (req, res) => {
           .header { text-align:center; margin-bottom:20px; }
           .header h1 { font-size:1.2rem; opacity:0.9; }
           .preview { max-width:100%; max-height:80vh; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,0.4); }
-          iframe { width:100%; max-width:900px; height:80vh; border:none; border-radius:8px; }
-          .download { margin-top:16px; padding:10px 24px; background:#e94560; color:#fff; border:none; border-radius:6px; font-size:1rem; cursor:pointer; text-decoration:none; }
+          .download { margin-top:16px; padding:10px 24px; background:#e94560; color:#fff; border:none; border-radius:6px; font-size:1rem; cursor:pointer; text-decoration:none; display:inline-block; }
           .download:hover { background:#c73e54; }
+          #pdf-container { width:100%; max-width:900px; }
+          #pdf-canvas { width:100%; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,0.4); display:block; }
+          #pdf-controls { display:flex; align-items:center; gap:12px; margin-top:12px; justify-content:center; }
+          #pdf-controls button { padding:6px 16px; background:#333; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; }
+          #pdf-controls button:hover { background:#555; }
+          #pdf-controls button:disabled { opacity:0.4; cursor:default; }
         </style></head><body>
           <div class="header"><h1>${qr.file_name}</h1></div>
           ${qr.file_type === 'application/pdf'
-            ? `<object data="/view/${qr.file_path}" type="application/pdf" width="100%" style="max-width:900px;height:80vh;border-radius:8px;display:block;">
-                <embed src="/view/${qr.file_path}" type="application/pdf" width="100%" style="max-width:900px;height:80vh;border-radius:8px;" />
-                <p style="text-align:center;padding:20px;">Your browser cannot display PDFs inline. <a class="download" href="/view/${qr.file_path}" style="color:#e94560">Open PDF</a></p>
-               </object>`
+            ? `<div id="pdf-container">
+                <canvas id="pdf-canvas"></canvas>
+                <div id="pdf-controls">
+                  <button id="prev-btn" onclick="changePage(-1)" disabled>&#8249; Prev</button>
+                  <span id="page-info">Loading...</span>
+                  <button id="next-btn" onclick="changePage(1)" disabled>Next &#8250;</button>
+                </div>
+               </div>
+               <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
+               <script>
+                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                 let pdfDoc = null, pageNum = 1;
+                 const canvas = document.getElementById('pdf-canvas');
+                 const ctx = canvas.getContext('2d');
+                 function renderPage(num) {
+                   pdfDoc.getPage(num).then(page => {
+                     const vp = page.getViewport({ scale: 1.8 });
+                     canvas.height = vp.height;
+                     canvas.width = vp.width;
+                     page.render({ canvasContext: ctx, viewport: vp });
+                     document.getElementById('page-info').textContent = 'Page ' + num + ' of ' + pdfDoc.numPages;
+                     document.getElementById('prev-btn').disabled = num <= 1;
+                     document.getElementById('next-btn').disabled = num >= pdfDoc.numPages;
+                   });
+                 }
+                 function changePage(delta) {
+                   pageNum = Math.min(Math.max(1, pageNum + delta), pdfDoc.numPages);
+                   renderPage(pageNum);
+                 }
+                 pdfjsLib.getDocument('/view/${qr.file_path}').promise.then(pdf => {
+                   pdfDoc = pdf;
+                   renderPage(1);
+                 }).catch(e => {
+                   document.getElementById('pdf-container').innerHTML = '<p style="padding:20px;text-align:center;">Could not load PDF. <a class="download" href="/view/${qr.file_path}">Download instead</a></p>';
+                 });
+               <\/script>`
             : `<img class="preview" src="/uploads/${qr.file_path}" alt="${qr.file_name}">`
           }
           <a class="download" href="/uploads/${qr.file_path}" download="${qr.file_name}">Download</a>
